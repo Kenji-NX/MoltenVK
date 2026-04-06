@@ -1687,7 +1687,6 @@ VkResult MVKPresentableSwapchainImage::presentCAMetalDrawable(id<MTLCommandBuffe
 		if (fence) { fence->release(); }
 		[mtlDrwbl release];
 		release();
-		if (_swapchain) { _swapchain->notifyPresentComplete(presentInfo); }
 	}];
 
 	signal(signaler.semaphore, signaler.semaphoreSignalToken, mtlCmdBuff);
@@ -1758,6 +1757,7 @@ void MVKPresentableSwapchainImage::endPresentation(const MVKImagePresentInfo& pr
 		lock_guard<mutex> lock(_detachmentLock);
 		if (_device) { addPerformanceInterval(getPerformanceStats().queue.presentSwapchains, _presentationStartTime); }
 		if (_swapchain) { _swapchain->endPresentation(presentInfo, _beginPresentTime, actualPresentTime); }
+		if (_swapchain) { _swapchain->notifyPresentComplete(presentInfo); }
 	}
 
 	// Makes an image available for acquisition by the app.
