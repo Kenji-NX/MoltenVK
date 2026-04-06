@@ -189,18 +189,14 @@ void MVKCommandBuffer::beginSecondaryEncoding(MVKCommandEncoder* cmdEncoder) {
 	}
 }
 
-void MVKCommandBuffer::releaseCommands(MVKCommand* command) {
-    while(command) {
-        MVKCommand* nextCommand = command->_next; // Establish next before returning current to pool.
-        (command->getTypePool(getCommandPool()))->returnObject(command);
-        command = nextCommand;
-    }
-}
-
 void MVKCommandBuffer::releaseRecordedCommands() {
-    releaseCommands(_head);
+	for (auto cmd: _destroyList) cmd->~MVKCommand();
+	_destroyList.clear();
+
 	_head = nullptr;
 	_tail = nullptr;
+	_commandChunkIndex = 0;
+	_commandChunkOffset = 0;
 }
 
 void MVKCommandBuffer::flushImmediateCmdEncoder() {
@@ -287,10 +283,7 @@ void MVKCommandBuffer::addCommand(MVKCommand* command) {
 
     if(_immediateCmdEncoder) {
         _immediateCmdEncoder->encodeCommands(command);
-        if( !_isReusable ) {
-            releaseCommands(command);
-            return;
-        }
+        if( !_isReusable ) return;
     }
 
     if (_tail) { _tail->_next = command; }
@@ -377,6 +370,7 @@ void MVKCommandBuffer::init(const VkCommandBufferAllocateInfo* pAllocateInfo) {
 }
 
 MVKCommandBuffer::~MVKCommandBuffer() {
+	for (auto p : _commandChunks) delete [] p;
 	reset(0);
 }
 
@@ -981,7 +975,7 @@ void MVKCommandEncoder::clearRenderArea(MVKCommandUse cmdUse) {
 
 		// Create and execute a temporary clear attachments command.
 		// To be threadsafe...do NOT acquire and return the command from the pool.
-		MVKCmdClearMultiAttachments<1> cmd;
+		MVKCmdClearMultiAttachments cmd;
 		cmd.setContent(_cmdBuffer, clearAttCnt, clearAtts.data(), 1, &clearRect, cmdUse);
 		cmd.encode(this);
 	} else {
@@ -993,11 +987,11 @@ void MVKCommandEncoder::clearRenderArea(MVKCommandUse cmdUse) {
 			// Create and execute a temporary clear attachments command.
 			// To be threadsafe...do NOT acquire and return the command from the pool.
 			if (clearRects.size() == 1) {
-				MVKCmdClearSingleAttachment<1> cmd;
+				MVKCmdClearSingleAttachment cmd;
 				cmd.setContent(_cmdBuffer, 1, &clearAtt, (uint32_t)clearRects.size(), clearRects.data(), cmdUse);
 				cmd.encode(this);
 			} else {
-				MVKCmdClearSingleAttachment<4> cmd;
+				MVKCmdClearSingleAttachment cmd;
 				cmd.setContent(_cmdBuffer, 1, &clearAtt, (uint32_t)clearRects.size(), clearRects.data(), cmdUse);
 				cmd.encode(this);
 			}
@@ -1327,6 +1321,9 @@ void MVKCommandEncoder::finishQueries() {
     _pActivatedQueries = nullptr;
 }
 
+void *mvkPushCommandMemory(MVKCommandBuffer *cmdBuffer, size_t size) {
+    return cmdBuffer->pushCommandMemory(size);
+}
 
 #pragma mark Construction
 
