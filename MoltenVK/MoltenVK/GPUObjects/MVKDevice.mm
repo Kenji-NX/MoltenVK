@@ -2562,7 +2562,7 @@ void MVKPhysicalDevice::initMetalFeatures() {
 		_metalFeatures.maxPerStageTextureCount = 128;
 
 		_metalFeatures.astcHDRTextures = !MVK_TVOS || mvkOSVersionIsAtLeast(16.0);
-		_metalFeatures.residencySets = mvkOSVersionIsAtLeast(15.0, 18.0, 2.0);
+		_metalFeatures.residencySets = false;
 		_metalFeatures.simdPermute = true;
 	}
 
