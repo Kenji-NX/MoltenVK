@@ -35,7 +35,9 @@ class MVKDescriptorUpdateTemplate;
 
 /**
  * Vulkan command to execute secondary command buffers.
+ * Template class to balance vector pre-allocations between very common low counts and fewer larger counts.
  */
+template <size_t N>
 class MVKCmdExecuteCommands : public MVKCommand {
 
 public:
@@ -46,8 +48,14 @@ public:
 	void encode(MVKCommandEncoder* cmdEncoder) override;
 
 protected:
-	MVKCommandVector<MVKCommandBuffer*> _secondaryCommandBuffers;
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
+
+	MVKSmallVector<MVKCommandBuffer*, N> _secondaryCommandBuffers;
 };
+
+// Concrete template class implementations.
+typedef MVKCmdExecuteCommands<1> MVKCmdExecuteCommands1;
+typedef MVKCmdExecuteCommands<16> MVKCmdExecuteCommandsMulti;
 
 
 #pragma mark -
@@ -55,7 +63,9 @@ protected:
 
 /**
  * Vulkan command to add a pipeline barrier.
+ * Template class to balance vector pre-allocations between very common low counts and fewer larger counts.
  */
+template <size_t N>
 class MVKCmdPipelineBarrier : public MVKCommand {
 
 public:
@@ -76,13 +86,17 @@ public:
 	void encode(MVKCommandEncoder* cmdEncoder) override;
 
 protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
 	bool coversTextures();
 
-	MVKCommandVector<MVKPipelineBarrier> _barriers;
-	VkPipelineStageFlags _srcStageMask;
-	VkPipelineStageFlags _dstStageMask;
+	MVKSmallVector<MVKPipelineBarrier, N> _barriers;
 	VkDependencyFlags _dependencyFlags;
 };
+
+// Concrete template class implementations.
+typedef MVKCmdPipelineBarrier<1> MVKCmdPipelineBarrier1;
+typedef MVKCmdPipelineBarrier<4> MVKCmdPipelineBarrier4;
+typedef MVKCmdPipelineBarrier<32> MVKCmdPipelineBarrierMulti;
 
 
 #pragma mark -
@@ -111,6 +125,10 @@ public:
 	void encode(MVKCommandEncoder* cmdEncoder) override;
 
 	bool isTessellationPipeline() override;
+
+protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
+
 };
 
 
@@ -121,6 +139,10 @@ class MVKCmdBindComputePipeline : public MVKCmdBindPipeline {
 
 public:
 	void encode(MVKCommandEncoder* cmdEncoder) override;
+
+protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
+
 };
 
 
@@ -129,7 +151,9 @@ public:
 
 /**
  * Vulkan command to bind descriptor sets without dynamic offsets.
+ * Template class to balance vector pre-allocations between very common low counts and fewer larger counts.
  */
+template <size_t N>
 class MVKCmdBindDescriptorSetsStatic : public MVKCommand {
 
 public:
@@ -145,13 +169,19 @@ public:
 	~MVKCmdBindDescriptorSetsStatic() override;
 
 protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
 	void encode(MVKCommandEncoder* cmdEncoder, MVKArrayRef<uint32_t> dynamicOffsets);
 
-	MVKCommandVector<MVKDescriptorSet*> _descriptorSets;
+	MVKSmallVector<MVKDescriptorSet*, N> _descriptorSets;
 	MVKPipelineLayout* _pipelineLayout = nullptr;
 	VkPipelineBindPoint _pipelineBindPoint;
 	uint32_t _firstSet;
 };
+
+// Concrete template class implementations.
+typedef MVKCmdBindDescriptorSetsStatic<1> MVKCmdBindDescriptorSetsStatic1;
+typedef MVKCmdBindDescriptorSetsStatic<4> MVKCmdBindDescriptorSetsStatic4;
+typedef MVKCmdBindDescriptorSetsStatic<8> MVKCmdBindDescriptorSetsStaticMulti;
 
 
 #pragma mark -
@@ -159,8 +189,10 @@ protected:
 
 /**
  * Vulkan command to bind descriptor sets with dynamic offsets.
+ * Template class to balance vector pre-allocations between very common low counts and fewer larger counts.
  */
-class MVKCmdBindDescriptorSetsDynamic : public MVKCmdBindDescriptorSetsStatic {
+template <size_t N>
+class MVKCmdBindDescriptorSetsDynamic : public MVKCmdBindDescriptorSetsStatic<N> {
 
 public:
 	VkResult setContent(MVKCommandBuffer* cmdBuff,
@@ -175,8 +207,14 @@ public:
 	void encode(MVKCommandEncoder* cmdEncoder) override;
 
 protected:
-	MVKCommandVector<uint32_t> _dynamicOffsets;
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
+
+	MVKSmallVector<uint32_t, N> _dynamicOffsets;
 };
+
+// Concrete template class implementations.
+typedef MVKCmdBindDescriptorSetsDynamic<4> MVKCmdBindDescriptorSetsDynamic4;
+typedef MVKCmdBindDescriptorSetsDynamic<8> MVKCmdBindDescriptorSetsDynamicMulti;
 
 
 #pragma mark -
@@ -184,7 +222,9 @@ protected:
 
 /**
  * Vulkan command to bind push constants.
+ * Template class to balance vector pre-allocations between very common low counts and fewer larger counts.
  */
+template <size_t N>
 class MVKCmdPushConstants : public MVKCommand {
 
 public:
@@ -198,10 +238,18 @@ public:
 	void encode(MVKCommandEncoder* cmdEncoder) override;
 
 protected:
-	MVKCommandVector<char> _pushConstants;
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
+
+	MVKSmallVector<char, N> _pushConstants;
 	VkShaderStageFlags _stageFlags;
 	uint32_t _offset;
 };
+
+// Concrete template class implementations.
+typedef MVKCmdPushConstants<64> MVKCmdPushConstants64;
+typedef MVKCmdPushConstants<128> MVKCmdPushConstants128;
+typedef MVKCmdPushConstants<512> MVKCmdPushConstantsMulti;
+
 
 #pragma mark -
 #pragma mark MVKCmdPushDescriptorSet
@@ -221,9 +269,10 @@ public:
 	~MVKCmdPushDescriptorSet() override;
 
 protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
 	void clearDescriptorWrites();
 
-	MVKCommandVector<VkWriteDescriptorSet> _descriptorWrites;
+	MVKSmallVector<VkWriteDescriptorSet, 1> _descriptorWrites;
 	MVKPipelineLayout* _pipelineLayout = nullptr;
 	VkPipelineBindPoint _pipelineBindPoint;
 	uint32_t _set;
@@ -247,6 +296,8 @@ public:
 	~MVKCmdPushDescriptorSetWithTemplate() override;
 
 protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
+
 	MVKDescriptorUpdateTemplate* _descUpdateTemplate = nullptr;
 	MVKPipelineLayout* _pipelineLayout = nullptr;
 	void* _pData = nullptr;
@@ -272,6 +323,8 @@ public:
 	void encode(MVKCommandEncoder* cmdEncoder) override;
 
 protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
+
 	MVKEvent* _mvkEvent;
 };
 
@@ -289,6 +342,8 @@ public:
 	void encode(MVKCommandEncoder* cmdEncoder) override;
 
 protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
+
 	MVKEvent* _mvkEvent;
 };
 
@@ -299,7 +354,9 @@ protected:
 /** Vulkan command to wait for an event to be signaled. */
 /**
  * Vulkan command to wait for an event to be signaled.
+ * Template class to balance vector pre-allocations between very common low counts and fewer larger counts.
  */
+template <size_t N>
 class MVKCmdWaitEvents : public MVKCommand {
 
 public:
@@ -323,5 +380,12 @@ public:
 	void encode(MVKCommandEncoder* cmdEncoder) override;
 
 protected:
-	MVKCommandVector<MVKEvent*> _mvkEvents;
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
+
+	MVKSmallVector<MVKEvent*, N> _mvkEvents;
+
 };
+
+// Concrete template class implementations.
+typedef MVKCmdWaitEvents<1> MVKCmdWaitEvents1;
+typedef MVKCmdWaitEvents<8> MVKCmdWaitEventsMulti;

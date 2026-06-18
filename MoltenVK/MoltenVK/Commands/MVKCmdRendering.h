@@ -30,12 +30,39 @@ class MVKFramebuffer;
 
 
 #pragma mark -
+#pragma mark MVKCmdBeginRenderPassBase
+
+/**
+ * Abstract base class of MVKCmdBeginRenderPass.
+ * Contains all pieces that are independent of the templated portions.
+ */
+class MVKCmdBeginRenderPassBase : public MVKCommand {
+
+public:
+	VkResult setContent(MVKCommandBuffer* cmdBuff,
+						const VkRenderPassBeginInfo* pRenderPassBegin,
+						const VkSubpassBeginInfo* pSubpassBeginInfo);
+
+	inline MVKRenderPass* getRenderPass() { return _renderPass; }
+
+protected:
+
+	MVKRenderPass* _renderPass;
+	MVKFramebuffer* _framebuffer;
+	VkRect2D _renderArea;
+	VkSubpassContents _contents;
+};
+
+
+#pragma mark -
 #pragma mark MVKCmdBeginRenderPass
 
 /**
  * Vulkan command to begin a render pass.
+ * Template class to balance vector pre-allocations between very common low counts and fewer larger counts.
  */
-class MVKCmdBeginRenderPass : public MVKCommand {
+template <size_t N_CV, size_t N_A>
+class MVKCmdBeginRenderPass : public MVKCmdBeginRenderPassBase {
 
 public:
 	VkResult setContent(MVKCommandBuffer* cmdBuff,
@@ -45,17 +72,29 @@ public:
 
 	void encode(MVKCommandEncoder* cmdEncoder) override;
 
-	inline MVKRenderPass* getRenderPass() { return _renderPass; }
-
 protected:
-	MVKRenderPass* _renderPass;
-	MVKFramebuffer* _framebuffer;
-	VkRect2D _renderArea;
-	VkSubpassContents _contents;
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
 
-	MVKCommandVector<VkClearValue> _clearValues;
-	MVKCommandVector<MVKImageView*> _attachments;
+	MVKSmallVector<VkClearValue, N_CV> _clearValues;
+    MVKSmallVector<MVKImageView*, N_A> _attachments;
 };
+
+// Concrete template class implementations.
+typedef MVKCmdBeginRenderPass<1, 0> MVKCmdBeginRenderPass10;
+typedef MVKCmdBeginRenderPass<2, 0> MVKCmdBeginRenderPass20;
+typedef MVKCmdBeginRenderPass<9, 0> MVKCmdBeginRenderPassMulti0;
+
+typedef MVKCmdBeginRenderPass<1, 1> MVKCmdBeginRenderPass11;
+typedef MVKCmdBeginRenderPass<2, 1> MVKCmdBeginRenderPass21;
+typedef MVKCmdBeginRenderPass<9, 1> MVKCmdBeginRenderPassMulti1;
+
+typedef MVKCmdBeginRenderPass<1, 2> MVKCmdBeginRenderPass12;
+typedef MVKCmdBeginRenderPass<2, 2> MVKCmdBeginRenderPass22;
+typedef MVKCmdBeginRenderPass<9, 2> MVKCmdBeginRenderPassMulti2;
+
+typedef MVKCmdBeginRenderPass<1, 9> MVKCmdBeginRenderPass1Multi;
+typedef MVKCmdBeginRenderPass<2, 9> MVKCmdBeginRenderPass2Multi;
+typedef MVKCmdBeginRenderPass<9, 9> MVKCmdBeginRenderPassMultiMulti;
 
 
 #pragma mark -
@@ -73,6 +112,8 @@ public:
 	void encode(MVKCommandEncoder* cmdEncoder) override;
 
 protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
+
 	VkSubpassContents _contents;
 };
 
@@ -88,6 +129,10 @@ public:
 						const VkSubpassEndInfo* pSubpassEndInfo);
 
 	void encode(MVKCommandEncoder* cmdEncoder) override;
+
+protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
+
 };
 
 
@@ -96,7 +141,9 @@ public:
 
 /**
  * Vulkan command to begin rendering.
+ * Template class to balance vector pre-allocations between very common low counts and fewer larger counts.
  */
+template <size_t N>
 class MVKCmdBeginRendering : public MVKCommand {
 
 public:
@@ -107,11 +154,19 @@ public:
 
 
 protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
+
 	VkRenderingInfo _renderingInfo;
-	MVKCommandVector<VkRenderingAttachmentInfo> _colorAttachments;
+	MVKSmallVector<VkRenderingAttachmentInfo, N> _colorAttachments;
 	VkRenderingAttachmentInfo _depthAttachment;
 	VkRenderingAttachmentInfo _stencilAttachment;
 };
+
+// Concrete template class implementations.
+typedef MVKCmdBeginRendering<1> MVKCmdBeginRendering1;
+typedef MVKCmdBeginRendering<2> MVKCmdBeginRendering2;
+typedef MVKCmdBeginRendering<4> MVKCmdBeginRendering4;
+typedef MVKCmdBeginRendering<8> MVKCmdBeginRenderingMulti;
 
 
 #pragma mark -
@@ -126,7 +181,9 @@ public:
 	void encode(MVKCommandEncoder* cmdEncoder) override;
 
 protected:
-	MVKCommandVector<uint32_t> _colorAttachmentLocations;
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
+
+	MVKSmallVector<uint32_t, 8> _colorAttachmentLocations;
 };
 
 
@@ -142,7 +199,9 @@ public:
 	void encode(MVKCommandEncoder* cmdEncoder) override;
 
 protected:
-	MVKCommandVector<uint32_t> _colorAttachmentInputIndices;
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
+
+	MVKSmallVector<uint32_t, 8> _colorAttachmentInputIndices;
 	uint32_t _depthInputAttachmentIndex;
 	uint32_t _stencilInputAttachmentIndex;
 	bool _hasDepthInputAttachmentIndex;
@@ -159,6 +218,10 @@ public:
 	VkResult setContent(MVKCommandBuffer* cmdBuff);
 
 	void encode(MVKCommandEncoder* cmdEncoder) override;
+
+protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
+
 };
 
 
@@ -174,7 +237,9 @@ public:
 	void encode(MVKCommandEncoder* cmdEncoder) override;
 
 protected:
-	MVKCommandVector<VkSampleLocationEXT> _sampleLocations;
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
+
+	MVKSmallVector<VkSampleLocationEXT, kMVKMaxSampleCount> _sampleLocations;
 };
 
 
@@ -185,6 +250,9 @@ class MVKCmdSetSampleLocationsEnable : public MVKSingleValueCommand<VkBool32> {
 
 public:
 	void encode(MVKCommandEncoder* cmdEncoder) override;
+
+protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
 };
 
 
@@ -193,7 +261,9 @@ public:
 
 /**
  * Vulkan command to set the viewports.
+ * Template class to balance vector pre-allocations between very common low counts and fewer larger counts.
  */
+template <size_t N>
 class MVKCmdSetViewport : public MVKCommand {
 
 public:
@@ -205,9 +275,15 @@ public:
 	void encode(MVKCommandEncoder* cmdEncoder) override;
 
 protected:
-	MVKCommandVector<VkViewport> _viewports;
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
+
+	MVKSmallVector<VkViewport, N> _viewports;
 	uint32_t _firstViewport;
 };
+
+// Concrete template class implementations.
+typedef MVKCmdSetViewport<1> MVKCmdSetViewport1;
+typedef MVKCmdSetViewport<kMVKMaxViewportScissorCount> MVKCmdSetViewportMulti;
 
 
 #pragma mark -
@@ -215,7 +291,9 @@ protected:
 
 /**
  * Vulkan command to set the scissor rectangles.
+ * Template class to balance vector pre-allocations between very common low counts and fewer larger counts.
  */
+template <size_t N>
 class MVKCmdSetScissor : public MVKCommand {
 
 public:
@@ -227,9 +305,15 @@ public:
 	void encode(MVKCommandEncoder* cmdEncoder) override;
 
 protected:
-	MVKCommandVector<VkRect2D> _scissors;
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
+
+	MVKSmallVector<VkRect2D, N> _scissors;
 	uint32_t _firstScissor;
 };
+
+// Concrete template class implementations.
+typedef MVKCmdSetScissor<1> MVKCmdSetScissor1;
+typedef MVKCmdSetScissor<kMVKMaxViewportScissorCount> MVKCmdSetScissorMulti;
 
 
 #pragma mark -
@@ -239,6 +323,9 @@ class MVKCmdSetDepthBias : public MVKSingleValueCommand<MVKDepthBias> {
 
 public:
     void encode(MVKCommandEncoder* cmdEncoder) override;
+
+protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
 };
 
 
@@ -249,6 +336,9 @@ class MVKCmdSetDepthBiasEnable : public MVKSingleValueCommand<VkBool32> {
 
 public:
 	void encode(MVKCommandEncoder* cmdEncoder) override;
+
+protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
 };
 
 
@@ -259,6 +349,9 @@ class MVKCmdSetBlendConstants : public MVKSingleValueCommand<MVKColor32> {
 
 public:
     void encode(MVKCommandEncoder* cmdEncoder) override;
+
+protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
 };
 
 
@@ -269,6 +362,9 @@ class MVKCmdSetDepthTestEnable : public MVKSingleValueCommand<VkBool32> {
 
 public:
 	void encode(MVKCommandEncoder* cmdEncoder) override;
+
+protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
 };
 
 
@@ -279,6 +375,9 @@ class MVKCmdSetDepthWriteEnable : public MVKSingleValueCommand<VkBool32> {
 
 public:
 	void encode(MVKCommandEncoder* cmdEncoder) override;
+
+protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
 };
 
 
@@ -289,6 +388,9 @@ class MVKCmdSetDepthClipEnable : public MVKSingleValueCommand<VkBool32> {
 
 public:
 	void encode(MVKCommandEncoder* cmdEncoder) override;
+
+protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
 };
 
 
@@ -299,6 +401,9 @@ class MVKCmdSetDepthCompareOp : public MVKSingleValueCommand<VkCompareOp> {
 
 public:
 	void encode(MVKCommandEncoder* cmdEncoder) override;
+
+protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
 };
 
 
@@ -309,6 +414,9 @@ class MVKCmdSetDepthBounds : public MVKSingleValueCommand<MVKDepthBounds> {
 
 public:
     void encode(MVKCommandEncoder* cmdEncoder) override;
+
+protected:
+    MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
 };
 
 
@@ -319,6 +427,9 @@ class MVKCmdSetDepthBoundsTestEnable : public MVKSingleValueCommand<VkBool32> {
 
 public:
     void encode(MVKCommandEncoder* cmdEncoder) override;
+
+protected:
+    MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
 };
 
 
@@ -329,6 +440,9 @@ class MVKCmdSetStencilTestEnable : public MVKSingleValueCommand<VkBool32> {
 
 public:
 	void encode(MVKCommandEncoder* cmdEncoder) override;
+
+protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
 };
 
 
@@ -348,6 +462,8 @@ public:
 	void encode(MVKCommandEncoder* cmdEncoder) override;
 
 protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
+
 	VkStencilFaceFlags _faceMask;
 	VkStencilOp _failOp;
 	VkStencilOp _passOp;
@@ -369,6 +485,8 @@ public:
     void encode(MVKCommandEncoder* cmdEncoder) override;
 
 protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
+
     VkStencilFaceFlags _faceMask;
     uint32_t _stencilCompareMask;
 };
@@ -387,6 +505,8 @@ public:
     void encode(MVKCommandEncoder* cmdEncoder) override;
 
 protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
+
     VkStencilFaceFlags _faceMask;
     uint32_t _stencilWriteMask;
 };
@@ -405,6 +525,8 @@ public:
     void encode(MVKCommandEncoder* cmdEncoder) override;
 
 protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
+
     VkStencilFaceFlags _faceMask;
     uint32_t _stencilReference;
 };
@@ -417,6 +539,9 @@ class MVKCmdSetCullMode : public MVKSingleValueCommand<VkCullModeFlags> {
 
 public:
     void encode(MVKCommandEncoder* cmdEncoder) override;
+
+protected:
+    MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
 };
 
 
@@ -427,6 +552,9 @@ class MVKCmdSetFrontFace : public MVKSingleValueCommand<VkFrontFace> {
 
 public:
     void encode(MVKCommandEncoder* cmdEncoder) override;
+
+protected:
+    MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
 };
 
 
@@ -437,6 +565,9 @@ class MVKCmdSetPatchControlPoints : public MVKSingleValueCommand<uint32_t> {
 
 public:
 	void encode(MVKCommandEncoder* cmdEncoder) override;
+
+protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
 };
 
 
@@ -447,6 +578,9 @@ class MVKCmdSetPolygonMode : public MVKSingleValueCommand<VkPolygonMode> {
 
 public:
 	void encode(MVKCommandEncoder* cmdEncoder) override;
+
+protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
 };
 
 
@@ -457,6 +591,9 @@ class MVKCmdSetLineRasterizationMode : public MVKSingleValueCommand<VkLineRaster
 
 public:
 	void encode(MVKCommandEncoder* cmdEncoder) override;
+
+protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
 };
 
 
@@ -467,6 +604,9 @@ class MVKCmdSetLineWidth : public MVKSingleValueCommand<float> {
 
 public:
 	void encode(MVKCommandEncoder* cmdEncoder) override;
+
+protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
 };
 
 
@@ -477,6 +617,9 @@ class MVKCmdSetPrimitiveTopology : public MVKSingleValueCommand<VkPrimitiveTopol
 
 public:
 	void encode(MVKCommandEncoder* cmdEncoder) override;
+
+protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
 };
 
 
@@ -487,6 +630,9 @@ class MVKCmdSetPrimitiveRestartEnable : public MVKSingleValueCommand<VkBool32> {
 
 public:
 	void encode(MVKCommandEncoder* cmdEncoder) override;
+
+protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
 };
 
 
@@ -497,6 +643,9 @@ class MVKCmdSetRasterizerDiscardEnable : public MVKSingleValueCommand<VkBool32> 
 
 public:
 	void encode(MVKCommandEncoder* cmdEncoder) override;
+
+protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
 };
 
 
@@ -507,5 +656,8 @@ class MVKCmdSetProvokingVertexMode : public MVKSingleValueCommand<VkProvokingVer
 
 public:
 	void encode(MVKCommandEncoder* cmdEncoder) override;
+
+protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
 };
 

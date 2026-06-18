@@ -28,7 +28,8 @@
 #pragma mark -
 #pragma mark MVKCmdBindVertexBuffers
 
-VkResult MVKCmdBindVertexBuffers::setContent(MVKCommandBuffer* cmdBuff,
+template <size_t N>
+VkResult MVKCmdBindVertexBuffers<N>::setContent(MVKCommandBuffer* cmdBuff,
 												uint32_t firstBinding,
 												uint32_t bindingCount,
 												const VkBuffer* pBuffers,
@@ -36,7 +37,7 @@ VkResult MVKCmdBindVertexBuffers::setContent(MVKCommandBuffer* cmdBuff,
 												const VkDeviceSize* pSizes,
 												const VkDeviceSize* pStrides) {
 	_firstBinding = firstBinding;
-	_bindings.alc.cmdBuffer = cmdBuff;
+	_bindings.clear();	// Clear for reuse
     _bindings.reserve(bindingCount);
     MVKVertexMTLBufferBinding b;
     for (uint32_t bindIdx = 0; bindIdx < bindingCount; bindIdx++) {
@@ -51,9 +52,14 @@ VkResult MVKCmdBindVertexBuffers::setContent(MVKCommandBuffer* cmdBuff,
 	return VK_SUCCESS;
 }
 
-void MVKCmdBindVertexBuffers::encode(MVKCommandEncoder* cmdEncoder) {
+template <size_t N>
+void MVKCmdBindVertexBuffers<N>::encode(MVKCommandEncoder* cmdEncoder) {
 	cmdEncoder->getState().bindVertexBuffers(_firstBinding, _bindings.contents());
 }
+
+template class MVKCmdBindVertexBuffers<1>;
+template class MVKCmdBindVertexBuffers<2>;
+template class MVKCmdBindVertexBuffers<8>;
 
 
 #pragma mark -
