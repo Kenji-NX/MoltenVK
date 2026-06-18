@@ -36,6 +36,8 @@ public:
     void encode(MVKCommandEncoder* cmdEncoder) override;
 
 protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
+
 	uint32_t _baseGroupX;
 	uint32_t _baseGroupY;
 	uint32_t _baseGroupZ;
@@ -56,6 +58,8 @@ public:
 	void encode(MVKCommandEncoder* cmdEncoder) override;
 
 protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
+
 	id<MTLBuffer> _mtlIndirectBuffer;
 	VkDeviceSize _mtlIndirectBufferOffset;
 };

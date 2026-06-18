@@ -29,11 +29,12 @@
 #pragma mark -
 #pragma mark MVKCmdExecuteCommands
 
-VkResult MVKCmdExecuteCommands::setContent(MVKCommandBuffer* cmdBuff,
+template <size_t N>
+VkResult MVKCmdExecuteCommands<N>::setContent(MVKCommandBuffer* cmdBuff,
 											  uint32_t commandBuffersCount,
 											  const VkCommandBuffer* pCommandBuffers) {
 	// Add clear values
-	_secondaryCommandBuffers.alc.cmdBuffer = cmdBuff;
+	_secondaryCommandBuffers.clear();	// Clear for reuse
 	_secondaryCommandBuffers.reserve(commandBuffersCount);
 	for (uint32_t cbIdx = 0; cbIdx < commandBuffersCount; cbIdx++) {
 		_secondaryCommandBuffers.push_back(MVKCommandBuffer::getMVKCommandBuffer(pCommandBuffers[cbIdx]));
@@ -43,19 +44,24 @@ VkResult MVKCmdExecuteCommands::setContent(MVKCommandBuffer* cmdBuff,
 	return VK_SUCCESS;
 }
 
-void MVKCmdExecuteCommands::encode(MVKCommandEncoder* cmdEncoder) {
+template <size_t N>
+void MVKCmdExecuteCommands<N>::encode(MVKCommandEncoder* cmdEncoder) {
     for (auto& cb : _secondaryCommandBuffers) { cmdEncoder->encodeSecondary(cb); }
 }
+
+template class MVKCmdExecuteCommands<1>;
+template class MVKCmdExecuteCommands<16>;
 
 
 #pragma mark -
 #pragma mark MVKCmdPipelineBarrier
 
-VkResult MVKCmdPipelineBarrier::setContent(MVKCommandBuffer* cmdBuff,
+template <size_t N>
+VkResult MVKCmdPipelineBarrier<N>::setContent(MVKCommandBuffer* cmdBuff,
 											  const VkDependencyInfo* pDependencyInfo) {
 	_dependencyFlags = pDependencyInfo->dependencyFlags;
 
-	_barriers.alc.cmdBuffer = cmdBuff;
+	_barriers.clear();	// Clear for reuse
 	_barriers.reserve(pDependencyInfo->memoryBarrierCount + 
 					  pDependencyInfo->bufferMemoryBarrierCount +
 					  pDependencyInfo->imageMemoryBarrierCount);
@@ -73,7 +79,8 @@ VkResult MVKCmdPipelineBarrier::setContent(MVKCommandBuffer* cmdBuff,
 	return VK_SUCCESS;
 }
 
-VkResult MVKCmdPipelineBarrier::setContent(MVKCommandBuffer* cmdBuff,
+template <size_t N>
+VkResult MVKCmdPipelineBarrier<N>::setContent(MVKCommandBuffer* cmdBuff,
 											  VkPipelineStageFlags srcStageMask,
 											  VkPipelineStageFlags dstStageMask,
 											  VkDependencyFlags dependencyFlags,
@@ -85,7 +92,7 @@ VkResult MVKCmdPipelineBarrier::setContent(MVKCommandBuffer* cmdBuff,
 											  const VkImageMemoryBarrier* pImageMemoryBarriers) {
 	_dependencyFlags = dependencyFlags;
 
-	_barriers.alc.cmdBuffer = cmdBuff;
+	_barriers.clear();	// Clear for reuse
 	_barriers.reserve(memoryBarrierCount + bufferMemoryBarrierCount + imageMemoryBarrierCount);
 
 	for (uint32_t i = 0; i < memoryBarrierCount; i++) {
@@ -101,7 +108,8 @@ VkResult MVKCmdPipelineBarrier::setContent(MVKCommandBuffer* cmdBuff,
 	return VK_SUCCESS;
 }
 
-void MVKCmdPipelineBarrier::encode(MVKCommandEncoder* cmdEncoder) {
+template <size_t N>
+void MVKCmdPipelineBarrier<N>::encode(MVKCommandEncoder* cmdEncoder) {
 	
 	auto& mtlFeats = cmdEncoder->getMetalFeatures();
 
@@ -209,7 +217,8 @@ void MVKCmdPipelineBarrier::encode(MVKCommandEncoder* cmdEncoder) {
 	}
 }
 
-bool MVKCmdPipelineBarrier::coversTextures() {
+template <size_t N>
+bool MVKCmdPipelineBarrier<N>::coversTextures() {
 	for (auto& b : _barriers) {
 		switch (b.type) {
 			case MVKPipelineBarrier::Memory:	return true;
@@ -219,6 +228,10 @@ bool MVKCmdPipelineBarrier::coversTextures() {
 	}
 	return false;
 }
+
+template class MVKCmdPipelineBarrier<1>;
+template class MVKCmdPipelineBarrier<4>;
+template class MVKCmdPipelineBarrier<32>;
 
 
 #pragma mark -
@@ -256,7 +269,8 @@ void MVKCmdBindComputePipeline::encode(MVKCommandEncoder* cmdEncoder) {
 #pragma mark -
 #pragma mark MVKCmdBindDescriptorSetsStatic
 
-VkResult MVKCmdBindDescriptorSetsStatic::setContent(MVKCommandBuffer* cmdBuff,
+template <size_t N>
+VkResult MVKCmdBindDescriptorSetsStatic<N>::setContent(MVKCommandBuffer* cmdBuff,
 													   VkPipelineBindPoint pipelineBindPoint,
 													   VkPipelineLayout layout,
 													   uint32_t firstSet,
@@ -271,34 +285,40 @@ VkResult MVKCmdBindDescriptorSetsStatic::setContent(MVKCommandBuffer* cmdBuff,
 	_pipelineLayout->retain();
 
 	// Add the descriptor sets
-	_descriptorSets.alc.cmdBuffer = cmdBuff;
+	_descriptorSets.clear();	// Clear for reuse
 	_descriptorSets.reserve(setCount);
 	for (uint32_t dsIdx = 0; dsIdx < setCount; dsIdx++) {
 		_descriptorSets.push_back((MVKDescriptorSet*)pDescriptorSets[dsIdx]);
 	}
 
-	if (_pipelineLayout) cmdBuff->destroyOnReset(this);
-
 	return VK_SUCCESS;
 }
 
-void MVKCmdBindDescriptorSetsStatic::encode(MVKCommandEncoder* cmdEncoder) {
+template <size_t N>
+void MVKCmdBindDescriptorSetsStatic<N>::encode(MVKCommandEncoder* cmdEncoder) {
 	encode(cmdEncoder, MVKArrayRef<uint32_t>());
 }
 
-void MVKCmdBindDescriptorSetsStatic::encode(MVKCommandEncoder* cmdEncoder, MVKArrayRef<uint32_t> dynamicOffsets) {
+template <size_t N>
+void MVKCmdBindDescriptorSetsStatic<N>::encode(MVKCommandEncoder* cmdEncoder, MVKArrayRef<uint32_t> dynamicOffsets) {
 	cmdEncoder->getState().bindDescriptorSets(_pipelineBindPoint, _pipelineLayout, _firstSet, static_cast<uint32_t>(_descriptorSets.size()), _descriptorSets.data(), static_cast<uint32_t>(dynamicOffsets.size()), dynamicOffsets.data());
 }
 
-MVKCmdBindDescriptorSetsStatic::~MVKCmdBindDescriptorSetsStatic() {
+template <size_t N>
+MVKCmdBindDescriptorSetsStatic<N>::~MVKCmdBindDescriptorSetsStatic() {
 	if (_pipelineLayout) { _pipelineLayout->release(); }
 }
+
+template class MVKCmdBindDescriptorSetsStatic<1>;
+template class MVKCmdBindDescriptorSetsStatic<4>;
+template class MVKCmdBindDescriptorSetsStatic<8>;
 
 
 #pragma mark -
 #pragma mark MVKCmdBindDescriptorSetsDynamic
 
-VkResult MVKCmdBindDescriptorSetsDynamic::setContent(MVKCommandBuffer* cmdBuff,
+template <size_t N>
+VkResult MVKCmdBindDescriptorSetsDynamic<N>::setContent(MVKCommandBuffer* cmdBuff,
 														VkPipelineBindPoint pipelineBindPoint,
 														VkPipelineLayout layout,
 														uint32_t firstSet,
@@ -307,11 +327,11 @@ VkResult MVKCmdBindDescriptorSetsDynamic::setContent(MVKCommandBuffer* cmdBuff,
 														uint32_t dynamicOffsetCount,
 														const uint32_t* pDynamicOffsets) {
 
-	MVKCmdBindDescriptorSetsStatic::setContent(cmdBuff, pipelineBindPoint, layout,
+	MVKCmdBindDescriptorSetsStatic<N>::setContent(cmdBuff, pipelineBindPoint, layout,
 												  firstSet, setCount, pDescriptorSets);
 
 	// Add the dynamic offsets
-	_dynamicOffsets.alc.cmdBuffer = cmdBuff;
+	_dynamicOffsets.clear();	// Clear for reuse
 	_dynamicOffsets.reserve(dynamicOffsetCount);
 	for (uint32_t doIdx = 0; doIdx < dynamicOffsetCount; doIdx++) {
 		_dynamicOffsets.push_back(pDynamicOffsets[doIdx]);
@@ -320,15 +340,20 @@ VkResult MVKCmdBindDescriptorSetsDynamic::setContent(MVKCommandBuffer* cmdBuff,
 	return VK_SUCCESS;
 }
 
-void MVKCmdBindDescriptorSetsDynamic::encode(MVKCommandEncoder* cmdEncoder) {
-	MVKCmdBindDescriptorSetsStatic::encode(cmdEncoder, _dynamicOffsets.contents());
+template <size_t N>
+void MVKCmdBindDescriptorSetsDynamic<N>::encode(MVKCommandEncoder* cmdEncoder) {
+	MVKCmdBindDescriptorSetsStatic<N>::encode(cmdEncoder, _dynamicOffsets.contents());
 }
+
+template class MVKCmdBindDescriptorSetsDynamic<4>;
+template class MVKCmdBindDescriptorSetsDynamic<8>;
 
 
 #pragma mark -
 #pragma mark MVKCmdPushConstants
 
-VkResult MVKCmdPushConstants::setContent(MVKCommandBuffer* cmdBuff,
+template <size_t N>
+VkResult MVKCmdPushConstants<N>::setContent(MVKCommandBuffer* cmdBuff,
 											VkPipelineLayout layout,
 											VkShaderStageFlags stageFlags,
 											uint32_t offset,
@@ -337,16 +362,20 @@ VkResult MVKCmdPushConstants::setContent(MVKCommandBuffer* cmdBuff,
 	_stageFlags = stageFlags;
 	_offset = offset;
 
-	_pushConstants.alc.cmdBuffer = cmdBuff;
 	_pushConstants.resize(size);
 	std::copy_n((char*)pValues, size, _pushConstants.begin());
 
 	return VK_SUCCESS;
 }
 
-void MVKCmdPushConstants::encode(MVKCommandEncoder* cmdEncoder) {
+template <size_t N>
+void MVKCmdPushConstants<N>::encode(MVKCommandEncoder* cmdEncoder) {
 	cmdEncoder->getState().pushConstants(_offset, static_cast<uint32_t>(_pushConstants.byteSize()), _pushConstants.data());
 }
+
+template class MVKCmdPushConstants<64>;
+template class MVKCmdPushConstants<128>;
+template class MVKCmdPushConstants<512>;
 
 
 #pragma mark -
@@ -367,7 +396,7 @@ VkResult MVKCmdPushDescriptorSet::setContent(MVKCommandBuffer* cmdBuff,
 	_pipelineLayout->retain();
 
 	// Add the descriptor writes
-	_descriptorWrites.alc.cmdBuffer = cmdBuff;
+	clearDescriptorWrites();	// Clear for reuse
 	_descriptorWrites.reserve(descriptorWriteCount);
 	for (uint32_t dwIdx = 0; dwIdx < descriptorWriteCount; dwIdx++) {
 		_descriptorWrites.push_back(pDescriptorWrites[dwIdx]);
@@ -405,8 +434,6 @@ VkResult MVKCmdPushDescriptorSet::setContent(MVKCommandBuffer* cmdBuff,
 			descWrite.pNext = pNewInlineUniformBlock;
 		}
 	}
-
-	cmdBuff->destroyOnReset(this);
 
 	return VK_SUCCESS;
 }
@@ -467,8 +494,6 @@ VkResult MVKCmdPushDescriptorSetWithTemplate::setContent(MVKCommandBuffer* cmdBu
 		mvkCopy(_pData, pData, _dataSize);
 	}
 
-	cmdBuff->destroyOnReset(this);
-
 	return VK_SUCCESS;
 }
 
@@ -525,11 +550,12 @@ void MVKCmdResetEvent::encode(MVKCommandEncoder* cmdEncoder) {
 #pragma mark -
 #pragma mark MVKCmdWaitEvents
 
-VkResult MVKCmdWaitEvents::setContent(MVKCommandBuffer* cmdBuff,
+template <size_t N>
+VkResult MVKCmdWaitEvents<N>::setContent(MVKCommandBuffer* cmdBuff,
 										 uint32_t eventCount,
 										 const VkEvent* pEvents,
 										 const VkDependencyInfo* pDependencyInfos) {
-	_mvkEvents.alc.cmdBuffer = cmdBuff;
+	_mvkEvents.clear();	// Clear for reuse
 	_mvkEvents.reserve(eventCount);
 	for (uint32_t i = 0; i < eventCount; i++) {
 		_mvkEvents.push_back((MVKEvent*)pEvents[i]);
@@ -538,7 +564,8 @@ VkResult MVKCmdWaitEvents::setContent(MVKCommandBuffer* cmdBuff,
 	return VK_SUCCESS;
 }
 
-VkResult MVKCmdWaitEvents::setContent(MVKCommandBuffer* cmdBuff,
+template <size_t N>
+VkResult MVKCmdWaitEvents<N>::setContent(MVKCommandBuffer* cmdBuff,
 										 uint32_t eventCount,
 										 const VkEvent* pEvents,
 										 VkPipelineStageFlags srcStageMask,
@@ -549,7 +576,7 @@ VkResult MVKCmdWaitEvents::setContent(MVKCommandBuffer* cmdBuff,
 										 const VkBufferMemoryBarrier* pBufferMemoryBarriers,
 										 uint32_t imageMemoryBarrierCount,
 										 const VkImageMemoryBarrier* pImageMemoryBarriers) {
-	_mvkEvents.alc.cmdBuffer = cmdBuff;
+	_mvkEvents.clear();	// Clear for reuse
 	_mvkEvents.reserve(eventCount);
 	for (uint32_t i = 0; i < eventCount; i++) {
 		_mvkEvents.push_back((MVKEvent*)pEvents[i]);
@@ -558,8 +585,12 @@ VkResult MVKCmdWaitEvents::setContent(MVKCommandBuffer* cmdBuff,
 	return VK_SUCCESS;
 }
 
-void MVKCmdWaitEvents::encode(MVKCommandEncoder* cmdEncoder) {
+template <size_t N>
+void MVKCmdWaitEvents<N>::encode(MVKCommandEncoder* cmdEncoder) {
 	for (MVKEvent* mvkEvt : _mvkEvents) {
 		mvkEvt->encodeWait(cmdEncoder->_mtlCmdBuffer);
 	}
 }
+
+template class MVKCmdWaitEvents<1>;
+template class MVKCmdWaitEvents<8>;
