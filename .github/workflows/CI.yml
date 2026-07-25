@@ -16,26 +16,32 @@ jobs:
     strategy:
       matrix:
         # Primary build on latest macOS and its default Xcode version
-        os: [ "macos-latest" ]
-        platform: [ "all", "macos", "ios" ]
+        os: [ "macos-26" ]
+        platform: [ "macos", "ios" ]
         upload_artifacts: [ true ]
         select_xcode: [ false ]
         private_api: [ false ]
 
         include:
           # macOS build with private APIs enabled.
-          - os: "macos-latest"
+          - os: "macos-26"
             platform: "macos"
             upload_artifacts: true
             select_xcode: false
             private_api: true
+          # iOS build with private APIs enabled.
+          - os: "macos-26"
+            platform: "ios"
+            upload_artifacts: true
+            select_xcode: false
+            private_api: true
           # Legacy build. Up to 3 versions behind latest (or beta).
-          - os: "macos-14"
-            xcode: "15.0.1"
-            platform: "macos"
-            upload_artifacts: false
-            select_xcode: true
-            private_api: false
+          # - os: "macos-14"
+            # xcode: "15.0.1"
+            # platform: "macos"
+            # upload_artifacts: false
+            # select_xcode: true
+            # private_api: false
       fail-fast: false
 
     name: MoltenVK (Xcode ${{ matrix.xcode }} - ${{ matrix.platform }}${{ matrix.private_api && '-privateapi' || '' }})
