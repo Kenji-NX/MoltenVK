@@ -798,8 +798,10 @@ void MVKCommandEncoder::beginMetalRenderPass(MVKCommandUse cmdUse) {
 	// we just set the render target extent to cover the render area.
 	VkExtent2D fbExtent = getFramebufferExtent();
 	VkExtent2D raFullExtent = { _renderArea.offset.x + _renderArea.extent.width, _renderArea.offset.y + _renderArea.extent.height };
-    mtlRPDesc.renderTargetWidth = max(min(raFullExtent.width, (fbExtent.width ? fbExtent.width : raFullExtent.width)), 1u);
-    mtlRPDesc.renderTargetHeight = max(min(raFullExtent.height, (fbExtent.height ? fbExtent.height : raFullExtent.height)), 1u);
+	uint32_t clampWidth = (fbExtent.width <= 1) ? raFullExtent.width : fbExtent.width;
+	uint32_t clampHeight = (fbExtent.height <= 1) ? raFullExtent.height : fbExtent.height;
+    mtlRPDesc.renderTargetWidth = max(min(raFullExtent.width, clampWidth), 1u);
+    mtlRPDesc.renderTargetHeight = max(min(raFullExtent.height, clampHeight), 1u);
     if (_canUseLayeredRendering) {
         uint32_t renderTargetArrayLength;
         bool found3D = false, found2D = false;
